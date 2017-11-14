@@ -4,7 +4,7 @@
 // 
 // Sources : 
 //		- MSDN "Complete Winsock Server Code" 
-//		- nweb23.c from Nigel Griffiths and IBM
+//		- nweb23.c from IBM and Nigel Griffiths
 //		- tftpd32
 // ---------------------------------------------------------
 
@@ -51,10 +51,14 @@ const char syntax[] = ""
 #define TOCKENBUCKET_PERIOD  125		 // timer for tocken bucket in ms for shaping
 
 // managed status code
-enum { HTTP_OK=200, HTTP_PARTIAL=206, 
-	   HTTP_BADREQUEST=400, HTTP_SECURITYVIOLATION=403, 
-	   HTTP_NOTFOUND=404, HTTP_METHODNOTALLOWED=405, 
-	   HTTP_TYPENOTSUPPORTED=415, HTTP_SERVERERROR=500 };
+enum { HTTP_OK=200, 
+	   HTTP_PARTIAL=206, 
+	   HTTP_BADREQUEST=400, 
+	   HTTP_SECURITYVIOLATION=403, 
+	   HTTP_NOTFOUND=404, 
+	   HTTP_METHODNOTALLOWED=405, 
+	   HTTP_TYPENOTSUPPORTED=415, 
+	   HTTP_SERVERERROR=500 };
 
 struct S_ErrorCodes
 {
