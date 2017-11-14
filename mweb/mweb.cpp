@@ -4,7 +4,7 @@
 // 
 // Sources : 
 //		- MSDN "Complete Winsock Server Code" 
-//		- nweb23.c from Nigel Griffiths
+//		- nweb23.c from Nigel Griffiths and IBM
 //		- tftpd32
 // ---------------------------------------------------------
 
