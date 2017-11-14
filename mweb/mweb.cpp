@@ -768,7 +768,7 @@ int __cdecl main(int argc, char *argv[])
 
 
 	if (sSettings.bVerbose)
-		printf("mweb is listening at port %s\n", sSettings.szPort);
+		printf("mweb is listening at port %s.\n", sSettings.szPort);
 	for (; ; )
 	{
 		doLoop(ListenSocket);
