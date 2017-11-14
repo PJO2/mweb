@@ -22,7 +22,6 @@
 
 // Need to link with Ws2_32.lib
 #pragma comment (lib, "Ws2_32.lib")
-#define QUOTE(...) #__VA_ARGS__
 
 const char syntax[] = ""
 "µweb: Usage\n"
