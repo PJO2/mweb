@@ -121,25 +121,83 @@ struct S_ThreadData
 }
 *sThreadData;			// array allocated in main
 
-						// known extensions for HTML content-type resolution
+// known extensions for HTML content-type resolution
+// from https://developer.mozilla.org/nl/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Complete_list_of_MIME_types
+// automatially generated from this url with the excel formula : 
+// IF(C2="";CONCAT(" { """;A2;"""";", """;C1;""" }, ");CONCAT(" { """;A2;"""";", """;C2;""" }, "))
 struct {
 	char *ext;
 	char *filetype;
 } sHtmlTypes[] = {
-		{ "gif", "image/gif" },
-		{ "jpg", "image/jpg" },
-		{ "jpeg","image/jpeg" },
-		{ "png", "image/png" },
-		{ "ico", "image/ico" },
-		{ "zip", "image/zip" },
-		{ "gz",  "image/gz" },
-		{ "tar", "image/tar" },
-		{ "htm", "text/html" },
-		{ "html","text/html" },
-		{ "mp3", "audio/mpeg" },
-		{ "mp4", "video/mpeg" },
-		{ "mpg", "video/mpeg" },
-		{ "txt", "text/txt" },
+	{ ".aac", "audio/aac" },
+	{ ".abw", "application/x-abiword" },
+	{ ".arc", "application/octet-stream" },
+	{ ".avi", "video/x-msvideo" },
+	{ ".azw", "application/vnd.amazon.ebook" },
+	{ ".bin", "application/octet-stream" },
+	{ ".bz", "application/x-bzip" },
+	{ ".bz2", "application/x-bzip2" },
+	{ ".csh", "application/x-csh" },
+	{ ".css", "text/css" },
+	{ ".csv", "text/csv" },
+	{ ".doc", "application/msword" },
+	{ ".eot", "application/vnd.ms-fontobject" },
+	{ ".epub", "application/epub+zip" },
+	{ ".gif", "image/gif" },
+	{ ".htm", "text/html" },
+	{ ".html", "text/html" },
+	{ ".ico", "image/x-icon" },
+	{ ".ics", "text/calendar" },
+	{ ".jar",  "application/java-archive" },
+	{ ".jpeg", "image/jpeg" },
+	{ ".jpg",  "image/jpeg" },
+	{ ".js",   "application/javascript" },
+	{ ".json", "application/json" },
+	{ ".mid", "audio/midi" },
+	{ ".mid", "audio/midi" },
+	{ ".mpeg", "video/mpeg" },
+	{ ".mpkg", "application/vnd.apple.installer+xml" },
+	{ ".odp", "application/vnd.oasis.opendocument.presentation" },
+	{ ".ods", "application/vnd.oasis.opendocument.spreadsheet" },
+	{ ".odt", "application/vnd.oasis.opendocument.text" },
+	{ ".oga", "audio/ogg" },
+	{ ".ogv", "video/ogg" },
+	{ ".ogx", "application/ogg" },
+	{ ".otf", "font/otf" },
+	{ ".png", "image/png" },
+	{ ".pdf", "application/pdf" },
+	{ ".ppt", "application/vnd.ms-powerpoint" },
+	{ ".rar", "application/x-rar-compressed" },
+	{ ".rtf", "application/rtf" },
+	{ ".sh", "application/x-sh" },
+	{ ".svg", "image/svg+xml" },
+	{ ".swf", "application/x-shockwave-flash" },
+	{ ".tar", "application/x-tar" },
+	{ ".tif", "image/tiff" },
+	{ ".tiff", "image/tiff" },
+	{ ".ts", "application/typescript" },
+	{ ".ttf", "font/ttf" },
+	{ ".vsd", "application/vnd.visio" },
+	{ ".wav", "audio/x-wav" },
+	{ ".weba", "audio/webm" },
+	{ ".webm", "video/webm" },
+	{ ".webp", "image/webp" },
+	{ ".woff", "font/woff" },
+	{ ".woff2", "font/woff2" },
+	{ ".xhtml", "application/xhtml+xml" },
+	{ ".xls", "application/vnd.ms-excel" },
+	{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+	{ ".xml", "application/xml" },
+	{ ".xul", "application/vnd.mozilla.xul+xml" },
+	{ ".zip", "application/zip" },
+	{ ".3gp", "video/3gpp" },
+	{ ".3g2", "video/3gpp2" },
+	{ ".7z", "application/x-7z-compressed" },
+
+	// add-ons
+	{ ".mp4",  "video/mpeg" }, 
+	{ ".mpg",  "video/mpeg" }, 
+	{ ".iso",  "application/iso" }, 
 };
 
 
@@ -397,9 +455,13 @@ void Shaper(struct S_ThreadData *pData, DWORD bytes_read)
 
   // translate file extension into HTTP content-type field
   // Get extension type 
-char *GetHtmlContentType(SOCKET skt, const char *os_extension)
+char *GetHtmlContentType(const char *os_extension)
 {
-	int ark;
+int ark;
+
+	if (os_extension == NULL)  
+		return  sSettings.szDefaultContentType;
+
 	// search for extension
 	for (ark = 0; ark<sizeof(sHtmlTypes) / sizeof(sHtmlTypes[0]); ark++)
 		if (lstrcmpi(sHtmlTypes[ark].ext, os_extension) == 0) break;
@@ -478,10 +540,7 @@ char     szCurDir[MAX_PATH];
 	if (pData->file_name == NULL)
 		pData->file_type = NULL;
 	else
-	{
 		pData->file_type = strrchr(pData->file_name, '.');	// search for '.'
-		if (pData->file_type != NULL)  pData->file_type++;  // skip the '.'
-	}
 
 	// sanity check : do not go backward in the directory structure
 	GetFullPathName(".", MAX_PATH, szCurDir, NULL);
@@ -535,7 +594,7 @@ LARGE_INTEGER large;
 		goto cleanup;
 
 	// check extension and get the HTTP content=type of the file
-	pContentType = GetHtmlContentType(pData->skt, pData->file_type);
+	pContentType = GetHtmlContentType(pData->file_type);
 	if (pContentType == NULL) 
 	{
 		iHttpStatus = HTTP_TYPENOTSUPPORTED;
@@ -660,8 +719,8 @@ int ParseCmdLine(int argc, char *argv[])
 				break;
 			case 'c': sSettings.szDefaultContentType = argv[ark + 1];  ark++;  break;
 			case 'd': if (!SetCurrentDirectory(argv[++ark]))
-				SVC_ERROR("can not change directory to %s\nError %d (%s)",
-					argv[ark], GetLastError(), LastErrorText());
+						SVC_ERROR("can not change directory to %s\nError %d (%s)",
+									argv[ark], GetLastError(), LastErrorText());
 				break;
 			case 'i': sSettings.szBoundTo = argv[ark + 1];  ark++;  break;
 			case 'p': sSettings.szPort = argv[++ark];  break;
@@ -723,7 +782,8 @@ void doLoop(SOCKET ListenSocket)
 
 	if (ark >= sSettings.max_threads)
 	{
-		puts("ignore request : too many simultaneous transfers\n");
+		if (sSettings.bVerbose)
+		    puts("ignore request : too many simultaneous transfers\n");
 	}
 	else
 	{
@@ -758,6 +818,7 @@ int __cdecl main(int argc, char *argv[])
 {
 	SOCKET ListenSocket;
 	int ark;
+	char sbuf[MAX_PATH];
 
 	ParseCmdLine(argc, argv); // override default settings
 							  // Prepare the socket
@@ -770,9 +831,10 @@ int __cdecl main(int argc, char *argv[])
 	for (ark = 0; ark < sSettings.max_threads; ark++)
 		sThreadData[ark].hThread = INVALID_HANDLE_VALUE;
 
+	GetCurrentDirectory(sizeof sbuf, sbuf);
+	// if (sSettings.bVerbose)
+		printf("mweb is listening at port %s, base directory is %s\n", 	sSettings.szPort, sbuf);
 
-	if (sSettings.bVerbose)
-		printf("mweb is listening at port %s.\n", sSettings.szPort);
 	for (; ; )
 	{
 		doLoop(ListenSocket);
