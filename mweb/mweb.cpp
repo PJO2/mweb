@@ -833,7 +833,7 @@ int __cdecl main(int argc, char *argv[])
 
 	GetCurrentDirectory(sizeof sbuf, sbuf);
 	// if (sSettings.bVerbose)
-		printf("mweb is listening at port %s, base directory is %s\n", 	sSettings.szPort, sbuf);
+		printf("mweb is listening on port %s, base directory is %s\n", 	sSettings.szPort, sbuf);
 
 	for (; ; )
 	{
