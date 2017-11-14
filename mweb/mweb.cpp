@@ -735,10 +735,10 @@ void doLoop(SOCKET ListenSocket)
 		sThreadData[ark].dwBytesSentThisTimeUnit = 0;
 		// Pass the socket id to a new thread and listen again
 		sThreadData[ark].hThread = CreateThread(NULL,
-			0,
-			HttpTransferThread,
-			&sThreadData[ark],
-			0, NULL);
+												0,
+												HttpTransferThread,
+												&sThreadData[ark],
+												0, NULL);
 		// check allocated resources
 		if (sThreadData[ark].buf == NULL || sThreadData[ark].hThread == INVALID_HANDLE_VALUE)
 		{
