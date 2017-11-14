@@ -1,5 +1,5 @@
 // --------------------------------------------------------
-// mweb23.cpp
+// mweb.cpp
 // by Ph. Jounin nov 2017
 // 
 // Sources : 
@@ -768,7 +768,7 @@ int __cdecl main(int argc, char *argv[])
 
 
 	if (sSettings.bVerbose)
-		printf("wweb23 is listening at port %s\n", sSettings.szPort);
+		printf("mweb is listening at port %s\n", sSettings.szPort);
 	for (; ; )
 	{
 		doLoop(ListenSocket);
