@@ -43,7 +43,8 @@ const char syntax[] = ""
 #define SYNTAX  syntax         
 
 // default parameters
-#define DEFAULT_BUFLEN       (1448*2)    // buffer size for reading HTTP command and file content
+#define DEFAULT_BURST_PKTS    2
+#define DEFAULT_BUFLEN       (1448*DEFAULT_BURST_PKTS)    // buffer size for reading HTTP command and file content (2 pkts of 1500 bytes)
 #define DEFAULT_PORT         "8080"    
 #define DEFAULT_MAXTHREADS   1024        // maximum simultaneous connections
 #define DEFAULT_HTMLFILE    "index.html" // if request is "GET / HTTP/1.1"
@@ -250,11 +251,44 @@ void SVC_ERROR(const char *szFmt, ...)
 
   /////////////////////////////////////////////////////////////////
   // utilities socket operations :
+  //	  - check that socket is still opened by listen at it
+  //	  - return MSS
   //      - bind its socket
   //      - init WSA socket
   //      - Check IPv6
   //      - send HTTP error
   /////////////////////////////////////////////////////////////////
+
+int IsTransferCancelledByPeer(SOCKET skt)
+{
+	struct timeval to = { 0, 0 };
+	fd_set fdset;
+	char   recv_buf[4];
+	int   iResult;
+	// check if socket has been closed by client
+	FD_ZERO(&fdset);
+	FD_SET(skt, &fdset);
+	iResult = select(0, &fdset, NULL, NULL, &to)>0
+		&& recv(skt, recv_buf, sizeof recv_buf, 0) == 0;
+	return iResult;
+} // IsTransferCancelledByPeer
+
+
+// return the max segment size for this socket
+int GetSocketMSS(SOCKET skt)
+{
+int tcp_mss = 0;
+int opt_len = sizeof tcp_mss;
+int iResult;
+
+	iResult = getsockopt(skt, IPPROTO_TCP, TCP_MAXSEG, (char*) & tcp_mss , & opt_len);
+	if (iResult < 0)
+	{
+		SVC_ERROR("Failed to get TCP_MAXSEG for master socket.\nError %d (%s)", GetLastError(), LastErrorText());
+		return -1;
+	}
+	return tcp_mss;
+} // GetSocketMSS
 
 int HTTPSendError (SOCKET skt, int HttpStatusCode)
 {
@@ -389,15 +423,15 @@ int LogTransfer(const struct S_ThreadData *pData, int when, int http_status)
 				NI_NUMERICHOST | AI_NUMERICSERV);
 	switch (when)
 	{
-	case LOG_BEGIN:
-		StringCchPrintf(szBuf, sizeof szBuf, "From %s:%s, GET %s", szAddr, szServ, pData->file_name);
-		break;
+		case LOG_BEGIN:
+			StringCchPrintf(szBuf, sizeof szBuf, "From %s:%s, GET %s. burst size %d", szAddr, szServ, pData->file_name, pData->buflen);
+			break;
 
-	case LOG_END:
-		StringCchPrintf(szBuf, sizeof szBuf, "From %s:%s, GET %s: %I64d bytes sent, status : %d",
-			szAddr, szServ, pData->file_name,
-			pData->qwFileCurrentPos, http_status );
-		break;
+		case LOG_END:
+			StringCchPrintf(szBuf, sizeof szBuf, "From %s:%s, GET %s: %I64d bytes sent, status : %d",
+				szAddr, szServ, pData->file_name,
+				pData->qwFileCurrentPos, http_status );
+			break;
 	}
 	return	puts(szBuf);
 } // LogTransfer
@@ -556,19 +590,8 @@ return HTTP_OK;
 } // DecodeHttpRequest
 
   // we don't expect anything from client, but it may abort the connection 
-int IsTransferCancelledByPeer(SOCKET skt)
-{
-struct timeval to = { 0, 0 };
-fd_set fdset;
-char   recv_buf[4];
-int   iResult;
-	// check if socket has been closed by client
-	FD_ZERO(&fdset);
-	FD_SET(skt, &fdset);
-	iResult =      select(0, &fdset, NULL, NULL, &to)>0
-				&& recv(skt, recv_buf, sizeof recv_buf, 0) == 0;
-	return iResult;
-}
+
+
 
 // Thread base
 DWORD WINAPI HttpTransferThread(LPVOID lpParam)
@@ -580,6 +603,7 @@ struct S_ThreadData *pData = (struct S_ThreadData *)  lpParam;
 int      iResult = -1;
 int      iHttpStatus=HTTP_BADREQUEST;
 LARGE_INTEGER large;
+int      tcp_mss;
 
 	// get http request
 	bytes_rcvd = recv(pData->skt, pData->buf, pData->buflen - 1, 0);
@@ -588,6 +612,10 @@ LARGE_INTEGER large;
 		SVC_ERROR("Error in recv\nError %d (%s)", GetLastError(), LastErrorText());
 		goto cleanup;
 	}
+	// modify buffer size depending on MSS
+	if ( (tcp_mss = GetSocketMSS(pData->skt)) > 0 ) 
+		pData->buflen = DEFAULT_BURST_PKTS * tcp_mss;
+
 	// request is valid and pData filled with requested file
 	iHttpStatus = DecodeHttpRequest(pData, bytes_rcvd);
 	if (iHttpStatus != HTTP_OK)
