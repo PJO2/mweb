@@ -8,7 +8,7 @@
 //		- tftpd32
 // ---------------------------------------------------------
 
-#define MWEB_VERSION "1.0"
+#define MWEB_VERSION "1.1"
 #undef UNICODE
 
 #define WIN32_LEAN_AND_MEAN
