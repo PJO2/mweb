@@ -8,6 +8,9 @@
 //		- tftpd32
 // ---------------------------------------------------------
 
+// AntiVirus workaround
+
+
 #define MWEB_VERSION "1.1"
 #undef UNICODE
 
@@ -202,6 +205,29 @@ struct {
 };
 
 
+// stub functions used for anti virus false positives
+#ifdef EMPTY_CODE
+char *LastErrorText(void) { return NULL; }
+void SVC_ERROR(const char *szFmt, ...) {}
+int IsTransferCancelledByPeer(SOCKET skt) { return 0; }
+int GetSocketMSS(SOCKET skt) { return 0; }
+int HTTPSendError(SOCKET skt, int HttpStatusCode) { return 0; }
+BOOL IsIPv6Enabled(void) { return 0; }
+SOCKET BindServiceSocket(int family, int type, const char *port, const char *sz_bind_addr) { return INVALID_SOCKET; }
+int InitSocket() { return 0; }
+int LogTransfer(const struct S_ThreadData *pData, int when, int http_status) { return 0; }
+void Shaper(struct S_ThreadData *pData, DWORD bytes_read) {}
+char *GetHtmlContentType(const char *os_extension) { return NULL; }
+BOOL ExtractFileName(const char *szHttpRequest, int request_length, char *szFileName, int name_size) { return FALSE; }
+int DecodeHttpRequest(struct S_ThreadData *pData, int request_length) { return 0; }
+DWORD WINAPI HttpTransferThread(LPVOID lpParam) { Sleep(10000);  return 0; }
+int ManageTerminatedThread(struct S_ThreadData *sThreadData) { return 0; }
+int ParseCmdLine(int argc, char *argv[]) { return 0; }
+void doLoop(SOCKET ListenSocket)  { }
+#endif
+
+
+
 /////////////////////////////////////////////////////////////////
 // utilities functions :
 //      - report error
@@ -290,7 +316,7 @@ int iResult;
 	return tcp_mss;
 } // GetSocketMSS
 
-int HTTPSendError (SOCKET skt, int HttpStatusCode)
+int HTTPSendError(SOCKET skt, int HttpStatusCode)
 {
 char szBuf[512];
 int  ark;
@@ -402,6 +428,7 @@ int InitSocket()
 } // InitSocket
 
 
+
   /////////////////////////////////////////////////////////////////
   // HTTP protocol management
   //      - decode incoming message
@@ -435,6 +462,8 @@ int LogTransfer(const struct S_ThreadData *pData, int when, int http_status)
 	}
 	return	puts(szBuf);
 } // LogTransfer
+
+
 
   // utility : sub function for Shaper
 inline void StartNewShapingPeriod(struct S_ThreadData *pData)
@@ -487,6 +516,7 @@ void Shaper(struct S_ThreadData *pData, DWORD bytes_read)
 	}
 } // Shaper
 
+
   // translate file extension into HTTP content-type field
   // Get extension type 
 char *GetHtmlContentType(const char *os_extension)
@@ -513,36 +543,40 @@ int ark;
   // HTTP formatting is GET _space_ file name ? arguments _space_ HTTP/VERSION _end of line_
 BOOL ExtractFileName(const char *szHttpRequest, int request_length, char *szFileName, int name_size)
 {
-const char *pCur;
-int         ark;
-int         len;
+const char *pCur=NULL, *pEnd;
+int         len, url_length;
 
-	// check that request is long enough to find the file name
+	// check that string is nul terminated (ok already done in caller)
+	if (strnlen_s(szHttpRequest, request_length) == request_length)
+		return FALSE;
+
+    // check that request is long enough to find the file name
 	if (request_length < sizeof "GET / HTTP/1.x\n" - 1) return FALSE;
+
 
 	// set beginning of filename, then find its end (first space)
 	// file name is supposed to start with '/', anyway accepts if / is missing
 	pCur = szHttpRequest[4] == '/' ? &szHttpRequest[5] : &szHttpRequest[4];
-	// search for next space, stop at the end of the string
-	for (ark = 0;
-		ark < request_length  &&  pCur[ark] != 0 && strchr("\r\n ?", pCur[ark]) == NULL;
-		ark++);
-	if (pCur[ark] != ' ' && pCur[ark] != '?')		// if anormal endings
+	pEnd = strpbrk(pCur, "\r\n ?");
+	if (*pEnd != ' ' && *pEnd != '?')		// if anormal endings
 	{
 		return FALSE;
 	}
 	// now we ignore all the other stuff sent by client....
 	// just copy the file name
-	if (ark == 0)		// file name is /
+	url_length = pEnd - pCur;
+	if (url_length == 0)		// file name is /
 		StringCchCopy(szFileName, name_size, sSettings.szDefaultHtmlFile);
 	else
 	{
-		len = min(ark, name_size - 1);
+		len = min(url_length, name_size - 1);
 		memcpy(szFileName, pCur, len);
 		szFileName[len] = 0;
 	}
 	return TRUE;
 } // ExtractFileName
+
+
 
 // Read request and extract file name
 // if error, can return abruptely: resources freed in calling funtions
@@ -553,7 +587,7 @@ char     szCurDir[MAX_PATH];
 	// double check buffer overflow
 	if (request_length >= (int)pData->buflen)
 		exit(-2);
-	pData->buf[request_length] = 0;
+	pData->buf[request_length++] = 0;
 
 	// ensure request is a GET
 	CharUpperBuff(pData->buf, sizeof "GET " - 1);
@@ -588,6 +622,7 @@ char     szCurDir[MAX_PATH];
 	}
 return HTTP_OK;
 } // DecodeHttpRequest
+
 
   // we don't expect anything from client, but it may abort the connection 
 
@@ -865,7 +900,7 @@ int __cdecl main(int argc, char *argv[])
 
 	for (; ; )
 	{
-		doLoop(ListenSocket);
+		 doLoop(ListenSocket);
 	} // for (; ; )
 	  // cleanup
 
