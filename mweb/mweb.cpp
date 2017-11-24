@@ -253,7 +253,7 @@ char *LastErrorText(void)
 	// Free the buffer.
 	LocalFree(lpMsgBuf);
 	// remove ending \r\n
-	p = strchr(szLastErrorText, '\r');
+	p = strrchr(szLastErrorText, '\r');
 	if (p != NULL)  *p = 0;
 	return szLastErrorText;
 } // LastErrorText
