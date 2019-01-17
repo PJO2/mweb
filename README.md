@@ -6,4 +6,6 @@ mweb is written in pure C using Windows API for file and socket access.
 
 mweb is a Windows port from the unix server nweb23
 
+Warning: This project is migrated to uweb (which is portable) and is now discontinued
+
 Released under GPLv2
